@@ -1,17 +1,13 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-html_document:
-keep_md: true
----
+#! /opt/local/bin/Rscript
 
-```{r, message=FALSE, warning=FALSE, include=FALSE}
 library("data.table")
 library("lubridate")
-```
+library("knitr")
 
-## Loading and preprocessing the data
-```{r, message=FALSE, warning=FALSE, include=FALSE} 
+
+CWD <- "~/Coursera/DataScience/Part5/RepData_PeerAssessment1"
+setwd(CWD)
+
 cacheData <- function(x, ...) {
   DT <- x$get_dt()
   if(!is.null(DT)) {
@@ -58,26 +54,18 @@ get_data_helper <- function(File = character()) {
   print( sptrintf("Data Set was downloaded on %s\n", dataDate))
   DT <- fread(input = File, nrows = -1L, header = T,
               stringsAsFactors = F)
-  DT$date <- as.factor(ymd(DT$date)) # convert date to factor (faster grouping)
+  DT$date <- as.factor(ymd(DT$date))
   return ( DT )
 }
-```
 
-```{r, message=FALSE, warning=FALSE}
-DataFile <- "./activity.csv" # working file
+DataFile <- "./activity.csv"
 CacheData <- read_dataCache( DataFile )
-DT <- cacheData(CacheData) 
-```
+DT <- cacheData(CacheData)
 
-## What is mean total number of steps taken per day?
-
-```{r, message=FALSE, warning=FALSE}
 # Calculate total number of steps in each day
 DT <- DT[, sum(steps, na.rm = T), by = date]
-```
-```{r, message=FALSE, warning=FALSE, include=FALSE}
 # some general statistics
-summaryStr <- sprintf("mean:   %8.0f\nmedian: %8.0f\n", mean(DT$V1), median(DT$V1) ) 
+summaryStr <- sprintf("mean:    %8.0f\nmedian: %8.0f\n", mean(DT$V1), median(DT$V1) ) 
 png("./figures/plot1.png",  width = 800, height = 800)
 par(mar=c(5, 5, 5, 1))
 hist(DT$V1, breaks = 10, 
@@ -85,63 +73,44 @@ hist(DT$V1, breaks = 10,
      col = "gray", cex.axis = 2, cex.main = 2, cex.lab =2)
 text(labels=summaryStr,  x=17000, y=12, cex = 1.5)
 dev.off()
-```
-[The summary distribution] of the total number of steps in each day.
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-cat(summaryStr)
-```
+print(summaryStr)
 
-## What is the average daily activity pattern?
-```{r, message=FALSE, warning=FALSE, include=FALSE}
+# The average daily activity
 DT <- cacheData(CacheData)
-```
-Calculates the average number of step in each interval
-```{r, message=FALSE, warning=FALSE}
 DT <- DT[, mean(steps, na.rm = T), by = interval]
-```
-```{r, message=FALSE, warning=FALSE, include=FALSE}
 maxStr <- sprintf("Maximum at interval %4.0f", DT$interval[which.max(DT$V1)] ) 
 png("./figures/plot2.png",  width = 800, height = 800)
 par(mar=c(5, 5, 5, 1))
 plot(x = DT$interval, y = DT$V1, type = "l", lwd = 2, col = "red", 
-     xlab = "Interval", ylab = "Number of steps", main = "Average number of steps",
+     xlab = "Interval", ylab = "Number of steps", main = "Avarage number of steps",
      cex.axis = 2, cex.main = 2, cex.lab =2, ylim = c(0, 210) )
 points(x = DT$interval[which.max(DT$V1)], y = max( DT$V1), 
        col = "blue", pch = 1, cex = 2)
 text(labels = maxStr, x = DT$interval[which.max(DT$V1)] + 30, y = max( DT$V1), 
      cex = 1.5, adj = 0 ) 
 dev.off()
-```
-[Plot of the daily activity pattern] 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-cat(maxStr)
-```
+print(maxStr)
 
-## Imputing missing values
-Count number of missing value
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Missing values
 DT <- cacheData(CacheData)
 NAStr <- sprintf("Total number of missing values %d\n", sum(!complete.cases(DT)))
-cat(NAStr)
-```
-Help function to replace NA with mean value of the whole window. If no values were measured in the window then replace them by zero
-```{r, message=FALSE, warning = F}
+print(NAStr)
+
+# replace NA with mean value
 replace_NA <- function(X) {
-  MEAN <- round(mean(X, na.rm = T), 0) # round since 0.4 steps make very little meaning 
+  MEAN <- round(mean(X, na.rm = T), 0) # use round since 0.4 steps make very little meaning 
   if (is.nan(MEAN) ) { MEAN <- 0 } # If no measurments in this window
   X[is.na(X)] <- MEAN
   return (X)
 }
-```
-Create a new dataset that is equal to the original dataset but with the missing data filled in. The missing value is substituted by mean value for particular interval in the specific date
-```{r, message=FALSE, warning = F}
+
+# replace NA with mean values for that marticular window (window is data/inteval)
 DT_NEW <- DT[, replace_NA(steps), by = list(date, interval)]
-colnames(DT_NEW) <- c("date", "interval", "steps")
-```
-```{r, message=FALSE, warning=FALSE, include=FALSE}
- DT_SUM <- DT_NEW[, sum(steps), by = date]
+colnames(DT_NEW) <- c("date", "interval", "steps") 
+summaryStatNoNA <- summary(data.frame(DT)[,c(3, 1, 2)])
+DT_SUM <- DT_NEW[, sum(steps), by = date]
 # some general statistics
-summaryStr <- sprintf("mean:  %8.0f\nmedian: %8.0f\n", mean(DT_SUM$V1), median(DT_SUM$V1) ) 
+summaryStr <- sprintf("mean:    %8.0f\nmedian: %8.0f\n", mean(DT_SUM$V1), median(DT_SUM$V1) ) 
 png("./figures/plot3.png",  width = 800, height = 800)
 par(mar=c(5, 5, 5, 1))
 hist(DT_SUM$V1, breaks = 10, 
@@ -149,44 +118,31 @@ hist(DT_SUM$V1, breaks = 10,
      col = "gray", cex.axis = 2, cex.main = 2, cex.lab =2)
 text(labels=summaryStr,  x=17000, y=12, cex = 1.5)
 dev.off()
-```
-[The summary] distribution of the total number of steps in each day (updated set).
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-cat(summaryStr)
+print(summaryStr)
 identicalStr <- sprintf("Is identical, %s",  
                         identical(summary(data.frame(DT_NEW)[,c(3, 1, 2)]), 
                  summary(DT[complete.cases(DT)]) ))
-cat("Summary initial set\n")
+print("Summary initial set\n")
 print(summary(DT[complete.cases(DT)]))
-cat("Summary updated set\n")
+print("Summary updated set\n")
 print(summary(data.frame(DT_NEW)[,c(3, 1, 2)]))
-cat(identicalStr)
-```
-Substituting of NA values by mean value for particular window doesn't effect the total number of steps,
-however the average number of steps goes down.
-## Are there differences in activity patterns between weekdays and weekends?
-Create a new factor variable in the dataset with two levels – “weekday” and “weekend”
-```{r, message=FALSE, warning=FALSE, include=FALSE}
+print(identicalStr)
 
+#Create a new factor variable in the dataset with two levels
 DT <-  cacheData(CacheData)
 DT_NEW <- DT[, replace_NA(steps), by = list(date, interval)]
 colnames(DT_NEW) <- c("date", "interval", "steps") 
-```
-```{r}
 DT_NEW$day_type<- as.factor(wday(DT_NEW$date) == 1 | wday(DT_NEW$date) == 7)
 levels(DT_NEW$day_type) <- c("weekday", "weekend")
-```
-[A panel plot] containing a time series plots of average number of step for different day type.
 
-Activity is different for different day of week.
-```{r, message=FALSE, warning=FALSE, include=FALSE}
+# plot activity in each inteval vs deferent weekday
 DT_NEW <- DT_NEW[, mean(steps), by=list(interval, day_type)]
 setkey(DT_NEW, day_type)
 png("./figures/plot4.png",  width = 800, height = 800)
 par(mar=c(1, 5, 2, 1), fig=c(0.,1,0.5,1))
 plot(x = DT_NEW["weekday"]$interval, y = DT_NEW["weekday"]$V1, 
      type = "l", col = "red", lwd = 2, 
-      xlab = "Interval", ylab = "Average number of steps", 
+      xlab = "Interval", ylab = "Avarage number of steps", 
               cex.axis = 2, cex.main = 2, cex.lab =2,  xaxt="n")
 mtext("Weekday", side=3 ,adj = 1, cex=2)
 par(mar=c(5, 5, 1, 1), fig=c(0.0, 1, 0, 0.5), new = T)
@@ -196,17 +152,7 @@ plot(x = DT_NEW["weekend"]$interval, y = DT_NEW["weekend"]$V1,
      cex.axis = 2, cex.main = 2, cex.lab =2)
 mtext("Weekend", side=3 ,adj = 1, cex=2)
 dev.off()
-```
 
-### The unformatted but more detailed R code is located in [Assignment1.R] file
-Usage:
 
-    Rscript ./Assignment1.R
-  
-Output: Plots and bunch of warnings  
 
-[The summary distribution]:./figures/plot1.png
-[Plot of the daily activity pattern]:./figures/plot2.png
-[The summary]:./figures/plot3.png
-[A panel plot]:./figures/plot4.png
-[Assignment1.R]:./Assignment1.R
+
